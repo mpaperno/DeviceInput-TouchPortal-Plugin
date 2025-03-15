@@ -1,0 +1,14 @@
+
+.vs*/
+*.code*
+build-*/
+bin/
+obj/
+dist/
+*.user
+*.filters
+*.log
+* - Copy
+_*.*
+?bak*/
+bak*/
