@@ -72,7 +72,7 @@ You have several options for getting **automatically notified** about new releas
 
 
 -------------
-# Documentation & Examples
+## Documentation & Examples
 
 Please check the Wiki!
 https://github.com/mpaperno/DeviceInput-TouchPortal-Plugin/wiki
@@ -85,7 +85,7 @@ Use the GitHub [Issues](https://github.com/mpaperno/DeviceInput-TouchPortal-Plug
 Use [Discussions](https://github.com/mpaperno/DeviceInput-TouchPortal-Plugin/discussions) for any other topic.
 
 There are also dedicated **Discord** channels on my server @ [#device-input-general](https://discord.gg/AhVYXRQTHu),
-and at Touch Portal's Discord server @ [#device-input](https://discord.gg/FhYsZNFgyw).
+and at Touch Portal's Discord server @ [#device-input](https://discord.gg/myBeyqf7zt).
 
 **Your feedback, suggestions, and other input is always welcome!**
 
