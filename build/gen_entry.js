@@ -59,7 +59,7 @@ if (!OUTPUT_PATH)
 const ICON_PATH = '%TP_PLUGIN_FOLDER%' + SYSTEM_NAME + '/tp_icon.png';
 const DEVICE_EVENT_STATE_ID = "InputDevice";  // used as ID prefix for device events "local states"
 // List of device types for which "First" and "Default" choices are presented to the user for device selection
-const DEFAULT_AND_FIRST_DEV_TYPES = [ "Controller", "Gamepad", "Joystick", "Throttle" /* , "Wheel" */ ];
+const DEFAULT_AND_FIRST_DEV_TYPES = [ "Controller", "Gamepad", "Joystick", "Throttle", "Wheel" ];
 
 
 // --------------------------------------

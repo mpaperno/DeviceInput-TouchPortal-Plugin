@@ -456,10 +456,12 @@ void Plugin::sendInstanceLists() const
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_GamepadType),
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_JoystickType),
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_ThrottleType),
+		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_WheelType),
 		Strings::tokenToName(AT_Default) + ' ' + Devices::deviceTypeName(DeviceType::DT_Controller),
 		Strings::tokenToName(AT_Default) + ' ' + Devices::deviceTypeName(DeviceType::DT_GamepadType),
 		Strings::tokenToName(AT_Default) + ' ' + Devices::deviceTypeName(DeviceType::DT_JoystickType),
 		Strings::tokenToName(AT_Default) + ' ' + Devices::deviceTypeName(DeviceType::DT_ThrottleType),
+		Strings::tokenToName(AT_Default) + ' ' + Devices::deviceTypeName(DeviceType::DT_WheelType),
 	};
 
 	Q_EMIT tpStateUpdate(m_stateIds[SID_DevicesList], formatDeviceNamesList(DeviceState::DS_Connected));
