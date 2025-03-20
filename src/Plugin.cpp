@@ -783,7 +783,13 @@ void Plugin::onDeviceEvent(const DeviceEvent &ev)
 		const QByteArray lastState = m_deviceStates[dev->uid()].value(stateId);
 		m_mtxDeviceStates.unlock();
 
+		// Create a new state if we didn't have a record of this one yet.
 		if (lastState.isNull()) {
+			// pad button names to 3 digits on controllers so states sort alphabetically
+			if (ev.type == EventType::Event_Button && ev.deviceType.testFlag(DeviceType::DT_Controller)) {
+				while (ctrlName.size() < 3)
+					ctrlName.prepend('0');
+			}
 			const QByteArray stateName = (dev->name() + " - "_L1 + g_deviceEventStrings[ev.type] + ' ' + ctrlName).toUtf8();
 			createStateWithDelay(fullStateId, dev->name().toUtf8(), stateName);
 			// qCDebug(lcPlugin) << "Created state" << fullStateId << stateName << "for" << dev->name();
