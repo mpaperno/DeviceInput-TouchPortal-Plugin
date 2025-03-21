@@ -447,11 +447,45 @@ static inline InputDevice *findFirstDeviceOfType(DeviceTypes type) {
 	return DMI()->devices(DeviceState::DS_Connected, DeviceManager::DiscoveryOrder, type, 1).value(0, nullptr);
 }
 
+static DeviceTypes matchDeviceType(const QString &expr, Qt::MatchFlags mf)
+{
+	if (expr.isEmpty())
+		return DeviceType::DT_Unknown;
+	const auto &typesMap = Devices::deviceTypeNames();
+
+	DeviceTypes dt = DeviceType::DT_Unknown;
+	if (!mf.testFlag(Qt::MatchRegularExpression)) {
+		const Qt::CaseSensitivity cs = (mf.testFlag(Qt::MatchCaseSensitive) ? Qt::CaseSensitive : Qt::CaseInsensitive);
+		if ((mf & Qt::MatchTypeMask) == Qt::MatchExactly) {
+			for (const auto &[key, val] : typesMap.asKeyValueRange())
+				if (!val.compare(expr, cs))
+					dt |= key;
+		}
+		else { // "Contains" match type
+			for (const auto &[key, val] : typesMap.asKeyValueRange())
+				if (val.contains(expr, cs))
+					dt |= key;
+		}
+	}
+	else {
+		const QRegularExpression re = Utils::expressionToRegEx(expr, mf);
+		qCDebug(lcDevices) << "Matching on type with regex" << re << "from original qry" << expr;
+		for (const auto &[key, val] : typesMap.asKeyValueRange()) {
+			if (val.contains(re))
+				dt |= key;
+		}
+	}
+	// qCDebug(lcPlugin) << dt << expr << mf;
+	return dt;
+}
+
 void Plugin::sendInstanceLists() const
 {
 	static const QStringList combos {
 		"--------"_L1,
 		Strings::tokenToName(AT_AllReportingDevices),
+		Strings::tokenToName(AT_AllMatching),
+		Strings::tokenToName(AT_DeviceMatch),
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_Controller),
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_GamepadType),
 		Strings::tokenToName(AT_First)   + ' ' + Devices::deviceTypeName(DeviceType::DT_JoystickType),
@@ -529,6 +563,26 @@ void Plugin::sendFullStatusReport() const
 		}
 	}
 }
+
+#if 0
+void Plugin::sendDeviceMatchOptionChoiceLists(int actionId, const QByteArray &instanceId, bool na) const
+{
+	static const QByteArrayList listWhat { g_actionTokenStrings[AT_ExprSubjectName], g_actionTokenStrings[AT_ExprSubjectType] };
+	static const QByteArrayList listType { g_actionTokenStrings[AT_ExprTypeEquals], g_actionTokenStrings[AT_ExprTypeContains], g_actionTokenStrings[AT_ExprTypeWildcard], g_actionTokenStrings[AT_ExprTypeRegExp] };
+	static const QByteArrayList listNa { ""_ba, "n/a"_ba };
+
+	const int whatId = actionId == AID_DeviceControl ? CLID_DeviceCtrMatchWhat : CLID_DeviceFilterMatchWhat;
+	const int typeId = actionId == AID_DeviceControl ? CLID_DeviceCtrMatchType : CLID_DeviceFilterMatchType;
+	if (na) {
+		Q_EMIT tpChoiceUpdateInstance(m_choiceListIds[whatId], instanceId, listNa);
+		Q_EMIT tpChoiceUpdateInstance(m_choiceListIds[typeId], instanceId, listNa);
+	}
+	else {
+		Q_EMIT tpChoiceUpdateInstance(m_choiceListIds[whatId], instanceId, listWhat);
+		Q_EMIT tpChoiceUpdateInstance(m_choiceListIds[typeId], instanceId, listType);
+	}
+}
+#endif
 
 void Plugin::setDefaultDeviceForTypeName(const QString &typeName, const QString &deviceName, bool notify, bool save)
 {
@@ -956,18 +1010,6 @@ void Plugin::onTpMessage(TPClientQt::MessageType type, const QJsonObject &msg)
 			break;
 		}
 
-		// case TPClientQt::MessageType::listChange: {
-		// 	if (!msg.value("actionId").toString().endsWith(tokenToId(AID_DeviceControl)))
-		// 		break;
-		// 	if (!msg.value("listId").toString().endsWith(QLatin1String(".action")))
-		// 		break;
-		// 	int token = tokenFromName(msg.value("value").toString().toUtf8());
-		// 	if (token != AT_Unknown) {
-		// 		updateInstanceChoices(token, msg.value("instanceId").toString().toUtf8());
-		// 	}
-		// 	break;
-		// }
-
 		case TPClientQt::MessageType::settings:
 			if (!g_ignoreNextSettings)
 				handleSettings(msg);
@@ -979,10 +1021,24 @@ void Plugin::onTpMessage(TPClientQt::MessageType type, const QJsonObject &msg)
 			exit();
 			return;
 
-		// case TPClientQt::MessageType::notificationOptionClicked:
-		// 	// passthrough to any scripts which may be listening on a callback.
-		// 	Q_EMIT tpNotificationClicked(msg.value(QLatin1String("notificationId")).toString(), msg.value(QLatin1String("optionId")).toString());
-		// 	break;
+#if 0
+		case TPClientQt::MessageType::listChange: {
+			const QByteArray actId = msg.value("actionId"_L1).toString().toUtf8();
+			const QByteArray dataId = msg.value("listId"_L1).toString().toUtf8();
+			const bool deviceCtrlAction = (actId.endsWith(tokenToName(AID_DeviceControl)));
+
+			if ((deviceCtrlAction && dataId.endsWith(g_choiceListTokenStrings[CLID_DeviceCtrDevName])) ||
+			    (actId.endsWith(tokenToName(AID_DeviceFilter)) && dataId.endsWith(g_choiceListTokenStrings[CLID_DeviceFilterDevName]))) {
+				const QMap<QString, QString> vals = TPClientQt::actionDataToMap(msg.value("values"_L1).toArray(), g_pathSep);
+				if (vals.value("matchWhat"_L1).isEmpty() && vals.value("matchType"_L1).isEmpty()) {
+					const QString val = msg.value("value").toString();
+					bool na = (val != tokenToName(AT_AllMatching) && val != tokenToName(AT_DeviceMatch));
+					sendDeviceMatchOptionChoiceLists(deviceCtrlAction ? AID_DeviceControl : AID_DeviceFilter, msg.value("instanceId").toString().toUtf8(), na);
+				}
+			}
+			break;
+		}
+#endif
 
 		default:
 			break;
@@ -1047,9 +1103,45 @@ Plugin::DeviceListFromActionT Plugin::getDeviceFromActionData(const QMap<QString
 	if (name.startsWith(PLUGIN_STR_MISC_ACT_DATA_PLACEHOLDER_PFX))
 		return DeviceListFromActionT();
 
+	// Try just searching by name first
 	InputDevice *dev = DMI()->deviceByName(name);
 	if (!!dev)
 		return DeviceListFromActionT({ dev });
+
+	const bool singleMatch = (name == g_actionTokenStrings[AT_DeviceMatch]);
+	const bool multiMatch = !singleMatch && (name == g_actionTokenStrings[AT_AllMatching]);
+	if (singleMatch || multiMatch) {
+		const QString expr = dataMap.value("match"_L1).trimmed();
+		if (name.isEmpty())
+			return DeviceListFromActionT();
+
+		Qt::MatchFlags mf = Qt::MatchExactly;
+		const int matchType = tokenFromName(dataMap.value("matchType"_L1).toUtf8());
+		if (matchType == AT_ExprTypeWildcard)
+			mf = Qt::MatchWildcard;
+		else if (matchType == AT_ExprTypeRegExp)
+			mf = Qt::MatchRegularExpression;
+		else if (matchType == AT_ExprTypeContains)
+			mf = Qt::MatchContains;
+		// else AT_ExprTypeEquals
+		QList<InputDevice *> list;
+
+		const int matchWhat = tokenFromName(dataMap.value("matchWhat"_L1).toUtf8());
+		if (matchWhat == AT_ExprSubjectName) {
+			list = DMI()->devicesByName(expr, mf, multiMatch ? 0 : 1);
+		}
+		else { // AT_ExprSubjectType
+			const DeviceTypes dt = matchDeviceType(expr, mf);
+			if (dt != DeviceType::DT_Unknown)
+				list = DMI()->devices(DeviceState::DS_Connected, DeviceManager::DiscoveryOrder, dt, multiMatch ? 0 : 1);
+		}
+
+		if (!list.isEmpty())
+			return DeviceListFromActionT(list.cbegin(), list.cend());
+
+		qCWarning(lcPlugin).noquote().nospace() << "Couldn't find any device(s) where " << dataMap.value("matchWhat"_L1) << " " << dataMap.value("matchType"_L1) << " \"" << name << '"';
+		return DeviceListFromActionT();
+	}
 
 	if (name == g_actionTokenStrings[AT_AllReportingDevices]) {
 		const auto list = DMI()->devices(DeviceState::DS_Reporting, DeviceManager::DiscoveryOrder);
@@ -1057,20 +1149,19 @@ Plugin::DeviceListFromActionT Plugin::getDeviceFromActionData(const QMap<QString
 	}
 
 	const QString typeName = name.split(' ').last().trimmed();
-	const DeviceTypes types = deviceTypeNameToType(typeName);
+	const DeviceTypes types = Devices::deviceTypeNameToType(typeName);
 	if (types == DeviceType::DT_Unknown) {
 		qCWarning(lcPlugin) << "Couldn't determine device type from type name" << typeName;
 		return DeviceListFromActionT();
 	}
 
-	if (name.startsWith(Strings::tokenToName(AT_First))) {
-		return DeviceListFromActionT({ findFirstDeviceOfType(types) });
-	}
+	if (name.startsWith(Strings::tokenToName(AT_First)))
+		dev = findFirstDeviceOfType(types);
+	else if (name.startsWith(Strings::tokenToName(AT_Default)))
+		dev = DMI()->deviceByName(m_defaultDevices.value(types));
 
-	if (name.startsWith(Strings::tokenToName(AT_Default))) {
-		if ((dev = DMI()->deviceByName(m_defaultDevices.value(types))))
-			return DeviceListFromActionT({ dev });
-	}
+	if (!!dev)
+		return DeviceListFromActionT({ dev });
 
 	qCWarning(lcPlugin) << "Couldn't find any device for name or assigned type" << name;
 	return DeviceListFromActionT();

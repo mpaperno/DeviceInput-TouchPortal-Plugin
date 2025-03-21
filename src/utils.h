@@ -23,6 +23,7 @@ to any 3rd-party components used within.
 #include <QDir>
 #include <QEventLoop>
 #include <QMutex>
+#include <QRegularExpression>
 #include <QThread>
 #include <QTimer>
 #include <QWaitCondition>
@@ -73,4 +74,13 @@ static inline void waitUs(int ms) {
 	wait(std::chrono::microseconds(ms));
 }
 
+static inline QRegularExpression expressionToRegEx(QStringView expression, Qt::MatchFlags matchFlags)
+{
+	QRegularExpression::PatternOptions po = QRegularExpression::UseUnicodePropertiesOption;
+	if (!matchFlags.testFlag(Qt::MatchCaseSensitive))
+		po |= QRegularExpression::CaseInsensitiveOption;
+	const QString expr = (matchFlags.testFlag(Qt::MatchWildcard) ? QRegularExpression::wildcardToRegularExpression(expression, QRegularExpression::NonPathWildcardConversion) : expression.toString());
+	return QRegularExpression(expr, po);
 }
+
+}  // Utils

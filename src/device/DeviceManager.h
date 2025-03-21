@@ -45,6 +45,9 @@ class DeviceManager : public QObject
 
 		static DeviceManager *instance();
 
+		InputDevice *device(const QByteArray &uid) const;
+		InputDevice *deviceByName(const QString &name, Qt::MatchFlags matchFlags = Qt::MatchExactly | Qt::MatchCaseSensitive) const;
+		QList<InputDevice *> devicesByName(const QString &name, Qt::MatchFlags matchFlags = Qt::MatchExactly | Qt::MatchCaseSensitive, qsizetype maxHits = 0) const;
 		QList<InputDevice*> devices(
 		    Devices::DeviceState minState = Devices::DeviceState::DS_Seen,
 		    DeviceSortOrder order = DeviceSortOrder::Unordered,
@@ -54,9 +57,6 @@ class DeviceManager : public QObject
 		    Devices::DeviceState minState = Devices::DeviceState::DS_Seen,
 		    DeviceSortOrder order = DeviceSortOrder::Unordered,
 		    Devices::DeviceTypes type = Devices::DeviceType::DT_Unknown) const;
-
-		InputDevice *device(const QByteArray &uid) const;
-		InputDevice *deviceByName(const QString &name) const;
 
 	public Q_SLOTS:
 		void init();

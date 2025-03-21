@@ -221,6 +221,38 @@ function addAction(id, name, descript, format, data, hold = false) {
   category.actions.push(action);
 }
 
+function makeActionLinesObj(format, hold = false) {
+  const key = hold ? "onhold" : "action";
+  return {
+    [key]: [
+      {
+        language: "default",
+        data: format.map(l => ({ lineFormat: l })),
+        // suggestions: { lineIndentation: 20, }
+      },
+    ]
+  };
+}
+
+function addActionWithLines(id, name, descript, format = [], data = null, hold = false)
+{
+  const dataMapArry = data?.map(d => `{$${d.id}$}`) ?? [];
+  const lines = format.map(f => String(f).format(dataMapArry));
+  lines.unshift(STATE_NAME_PREFIX + ": " + descript);
+  const linesObj = makeActionLinesObj(lines);
+  if (hold)
+    Object.assign(linesObj, makeActionLinesObj(lines, true));
+  const action = {
+    id: PLUGIN_ID + '.act.' + id,
+    name: name,
+    type: "communicate",
+    lines: linesObj,
+    data: data ? data.map(a => ({...a})) : []
+  }
+  addVersionData(id, action.data);
+  category.actions.push(action);
+}
+
 // note that 'description' field is not actually used by TP as of v3.1
 function addConnector(id, name, descript, format, data) {
   const action = {
@@ -461,6 +493,17 @@ function createDeviceMotionEvent()
 // --------------------------------------
 // Action creation functions
 
+function addDeviceExpressionFields(id, formatLines, data) {
+  formatLines.push("Match Expression:" + EM + "Device {2} {3} {4}");
+  data.push(
+    makeChoiceData(id + ".matchWhat", "Match Field", ["name", "type"]),
+    makeChoiceData(id + ".matchType", "Match Type", ["equals", "contains", "matches wildcard", "matches RegEx"], "contains"),
+    // makeChoiceData(id + ".matchWhat", "Match Field", ["", "n/a"]),
+    // makeChoiceData(id + ".matchType", "Match Type", ["", "n/a"]),
+    makeTextData(id + ".match", "Match Expression"),
+  );
+}
+
 function addSystemActions()
 {
   var id = "plugin";
@@ -485,32 +528,40 @@ function addSystemActions()
   );
 
   id = "device";
-  addAction(id, "Device Control Actions",
-    "Perform an action on a selected device.",
-    "{0} on {1}",
-    [
-      makeChoiceData(id + ".action", "Action to Perform", [
-        "Start Reporting",
-        "Stop Reporting",
-        "Toggle Reporting",
-        "Refresh Report",
-        "Clear Report Filter",
-      ], "select an action..."),
-      makeChoiceData(id + ".device", "Device Name", [], "select a device..."),
-    ]
+  var format = ["{0} on {1}"];
+  var data = [
+    makeChoiceData(id + ".action", "Action to Perform", [
+      "Start Reporting",
+      "Stop Reporting",
+      "Toggle Reporting",
+      "Refresh Report",
+      "Clear Report Filter",
+    ], "select an action..."),
+    makeChoiceData(id + ".device", "Device Name", [], "select a device..."),
+  ]
+  addDeviceExpressionFields(id, format, data);
+  addActionWithLines(id, "Device Control Actions",
+    "Perform an action on one or more devices.\n" +
+      "A specific device which is currently connected can selected directly, or an expression may be used to select device(s) based on a name or type.",
+    format, data
   );
 
+
   id = "filter";
-  addAction(id, "Set Device Report Filter",
-    "Set filter(s) for device reporting. " +
-    "Format reference: [!](a|b|h|k|m|s)[#|#-#] [, ...]\n" +
-    "See online documentation for details." +
-    "The default value example means: buttons 1-32 but not 8-16, axes 1-4 but not 3, no hats",
-    "Device: {0} Filter: {1}",
-    [
-      makeChoiceData(id + ".device", "Device Name", [], "select a device..."),
-      makeTextData(id + ".filter", "Filter Value", "b1-32, !b8-16, a1-4, !a3, !h"),
-    ]
+  format = [
+    "Set Filter: {0} Format reference: [!](a|b|h|k|m|s)[#|#-#] [, ...]",
+    "On Device: {1}"
+  ];
+  data = [
+    makeTextData(id + ".filter", "Filter Value", "b1-32, !b8-16, a1-4, !a3, !h"),
+    makeChoiceData(id + ".device", "Device Name", [], "select a device..."),
+  ]
+  addDeviceExpressionFields(id, format, data);
+  addActionWithLines(id, "Set Device Report Filter",
+    "Set filter(s) for device reporting.\n" +
+      "See online documentation for details." +
+      "The default filter value example means: buttons 1-32 but not 8-16, axes 1-4 but not 3, no hats",
+    format, data
   );
 
   id = "default";

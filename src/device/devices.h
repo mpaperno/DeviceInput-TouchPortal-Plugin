@@ -77,8 +77,8 @@ enum DeviceType : uint32_t {
 	DT_Gyro       = 0x0200,
 	DT_Mag        = 0x0400,
 	DT_AccelType    = DT_Sensor | DT_Accel,
-	DT_GyroType    = DT_Sensor | DT_Gyro,
-	DT_MagType    = DT_Sensor | DT_Mag,
+	DT_GyroType     = DT_Sensor | DT_Gyro,
+	DT_MagType      = DT_Sensor | DT_Mag,
 
 	DT_CustomType = 0x1000'0000,
 
@@ -219,7 +219,7 @@ static inline constexpr bool isToggleKey(uint scancode) {
 #endif
 }
 
-static QString deviceTypeName(Devices::DeviceTypes type)
+static QHash<DeviceTypes, QString> deviceTypeNames()
 {
 	static const QHash<DeviceTypes, QString> map {
 		{  DeviceType::DT_Unknown,      tr("Unknown", "device type") },
@@ -237,8 +237,13 @@ static QString deviceTypeName(Devices::DeviceTypes type)
 		{  DeviceType::DT_TouchType,    tr("Touchscreen") },
 		{  DeviceType::DT_PenType,      tr("Pen")         },
 	};
-	static const QString defaultType { map.value(DeviceType::DT_Unknown) };
-	return map.value(type, defaultType);
+	return map;
+}
+
+static inline QString deviceTypeName(Devices::DeviceTypes type)
+{
+	static const QString defaultType { deviceTypeNames().value(DeviceType::DT_Unknown) };
+	return deviceTypeNames().value(type, defaultType);
 }
 
 static Devices::DeviceTypes deviceTypeNameToType(QStringView name)

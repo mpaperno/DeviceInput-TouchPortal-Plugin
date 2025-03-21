@@ -25,6 +25,7 @@ to any 3rd-party components used within.
 #include "InputDevice.h"
 #include "logging.h"
 #include "SDLManager.h"
+#include "utils.h"
 
 #ifdef USE_WINDOWS_HOOK
 #include "WindowsDeviceManager.h"
@@ -177,6 +178,57 @@ DeviceManager::~DeviceManager()
 
 DeviceManager *DeviceManager::instance() { return dmInstance; }
 
+InputDevice *DeviceManager::device(const QByteArray &uid) const
+{
+	Q_DC(DeviceManager);
+	return d->devices.value(uid, nullptr);
+}
+
+InputDevice *DeviceManager::deviceByName(const QString &name, Qt::MatchFlags matchFlags) const {
+	return devicesByName(name, matchFlags, 1).value(0, nullptr);
+}
+
+QList<InputDevice *> DeviceManager::devicesByName(const QString &name, Qt::MatchFlags matchFlags, qsizetype maxHits) const
+{
+	QList<InputDevice *> list;
+	if (name.isEmpty())
+		return list;
+
+	Q_DC(DeviceManager);
+	if (!matchFlags.testFlag(Qt::MatchRegularExpression)) {
+		const Qt::CaseSensitivity cs = (matchFlags.testFlag(Qt::MatchCaseSensitive) ? Qt::CaseSensitive : Qt::CaseInsensitive);
+
+		if ((matchFlags & Qt::MatchTypeMask) == Qt::MatchExactly) {
+			for (const auto dev : d->devices.values()) {
+				if (!dev->name().compare(name, cs))
+					list << dev;
+				if (maxHits && maxHits == list.size())
+					break;
+			}
+			return list;
+		}
+
+		// "Contains" match type
+		for (const auto &uid : std::as_const(d->discoveryOrder)) {
+			if (const auto dev = d->devices.value(uid); !!dev && dev->name().contains(name, cs))
+				list << dev;
+			if (maxHits && maxHits == list.size())
+				break;
+		}
+		return list;
+	}
+
+	const QRegularExpression re = Utils::expressionToRegEx(name, matchFlags);
+	qCDebug(lcDevices) << "Matching on name with regex" << re << "from original qry" << name;
+	for (const auto &uid : std::as_const(d->discoveryOrder)) {
+		if (const auto dev = d->devices.value(uid); !!dev && dev->name().contains(re))
+			list << dev;
+		if (maxHits && maxHits == list.size())
+			break;
+	}
+	return list;
+}
+
 QList<InputDevice *> DeviceManager::devices(DeviceState minState, DeviceSortOrder order, DeviceTypes type, qsizetype maxHits) const
 {
 	Q_DC(DeviceManager);
@@ -209,7 +261,7 @@ QList<InputDevice *> DeviceManager::devices(DeviceState minState, DeviceSortOrde
 			}
 		}
 		if (order == DeviceSortOrder::NameOrder)
-			std::sort(list.begin(), list.end(), [](InputDevice *d1, InputDevice *d2) { return d1->name().compare(d2->name()); });
+			std::sort(list.begin(), list.end(), [](InputDevice *d1, InputDevice *d2) { return d1->name().localeAwareCompare(d2->name()); });
 	}
 	return list;
 }
@@ -236,25 +288,6 @@ QStringList DeviceManager::deviceNames(DeviceState minState, DeviceSortOrder ord
 			list.sort();
 	}
 	return list;
-}
-
-InputDevice *DeviceManager::device(const QByteArray &uid) const
-{
-	Q_DC(DeviceManager);
-	return d->devices.value(uid, nullptr);
-}
-
-InputDevice *DeviceManager::deviceByName(const QString &name) const
-{
-	if (name.isEmpty())
-		return nullptr;
-
-	Q_DC(DeviceManager);
-	for (const auto dev : d->devices.values()) {
-		if (dev->name() == name)
-			return dev;
-	}
-	return nullptr;
 }
 
 void DeviceManager::init()

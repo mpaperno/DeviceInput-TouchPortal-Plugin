@@ -102,6 +102,7 @@ class Plugin : public QObject
 		void sendFirstAssignedDeviceStateUpdate(Devices::DeviceTypes devType) const;
 		void sendDefaultAssignedDeviceStateUpdate(Devices::DeviceTypes devType) const;
 		void sendFullStatusReport() const;
+		// void sendDeviceMatchOptionChoiceLists(int actionId, const QByteArray &instanceId, bool na) const;
 
 		void setDefaultDeviceForTypeName(const QString &typeName, const QString &deviceName, bool notify = true, bool save = true);
 

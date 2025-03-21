@@ -169,7 +169,11 @@ static inline constexpr const QLatin1StringView eventIdTokenString(int id) { ret
 enum ChoiceListIdToken : uint8_t
 {
 	CLID_DeviceCtrDevName,
+	CLID_DeviceCtrMatchWhat,
+	CLID_DeviceCtrMatchType,
 	CLID_DeviceFilterDevName,
+	CLID_DeviceFilterMatchWhat,
+	CLID_DeviceFilterMatchType,
 	CLID_DefaultDeviceDevName,
 
 	CLID_ENUM_MAX
@@ -178,7 +182,11 @@ enum ChoiceListIdToken : uint8_t
 static constexpr const char * g_choiceListTokenStrings[CLID_ENUM_MAX]
 {
 	"device.device",
+	"device.matchWhat",
+	"device.matchType",
 	"filter.device",
+	"filter.matchWhat",
+	"filter.matchType",
 	"default.device",
 };
 static inline const char * const * choiceListTokenStrings() { return g_choiceListTokenStrings; }
@@ -255,13 +263,16 @@ enum ActionTokens : uint8_t
 	AT_Default,
 	AT_First,
 	AT_AllReportingDevices,
+	AT_AllMatching,
+	AT_DeviceMatch,
 	AT_RemoveDeviceAssignment,
-	// AT_FirstController,
-	// AT_FirstJoystick,
-	// AT_FirstGamepad,
-	// AT_FirstThrottle,
-	// AT_Increment,
-	// AT_Decrement,
+
+	AT_ExprSubjectName,
+	AT_ExprSubjectType,
+	AT_ExprTypeEquals,
+	AT_ExprTypeContains,
+	AT_ExprTypeWildcard,
+	AT_ExprTypeRegExp,
 
 	AT_ENUM_MAX
 };
@@ -299,13 +310,17 @@ static constexpr const char * g_actionTokenStrings[AT_ENUM_MAX] {
 	"Default",
 	"First",
 	"All With Active Reports",
+	"All Devices Matching Expression...",
+	"First Device Matching Expression...",
 	"Remove Assignment",
-	// "First Controller",
-	// "First Joystick",
-	// "First Gamepad",
-	// "First Throttle",
-	// "Increment",
-	// "Decrement",
+
+	"name",
+	"type",
+	"equals",
+	"contains",
+	"matches wildcard",
+	"matches RegEx",
+
 };
 
 static inline constexpr const QLatin1StringView tokenToName(int token) {
@@ -335,11 +350,16 @@ static int tokenFromName(const QByteArray &name, int deflt = AT_Unknown)
 	  { g_actionTokenStrings[AT_Default],                AT_Default },
 	  { g_actionTokenStrings[AT_First],                  AT_First },
 	  { g_actionTokenStrings[AT_AllReportingDevices],    AT_AllReportingDevices },
+	  { g_actionTokenStrings[AT_AllMatching],            AT_AllMatching },
+	  { g_actionTokenStrings[AT_DeviceMatch],            AT_DeviceMatch },
 	  { g_actionTokenStrings[AT_RemoveDeviceAssignment], AT_RemoveDeviceAssignment },
-	  // { g_actionTokenStrings[AT_FirstController],      AT_FirstController },
-	  // { g_actionTokenStrings[AT_FirstJoystick],        AT_FirstJoystick },
-	  // { g_actionTokenStrings[AT_FirstGamepad],         AT_FirstGamepad },
-	  // { g_actionTokenStrings[AT_FirstThrottle],        AT_FirstThrottle },
+
+	  { g_actionTokenStrings[AT_ExprSubjectName],     AT_ExprSubjectName },
+	  { g_actionTokenStrings[AT_ExprSubjectType],     AT_ExprSubjectType },
+	  { g_actionTokenStrings[AT_ExprTypeEquals],      AT_ExprTypeEquals },
+	  { g_actionTokenStrings[AT_ExprTypeContains],    AT_ExprTypeContains },
+	  { g_actionTokenStrings[AT_ExprTypeWildcard],    AT_ExprTypeWildcard },
+	  { g_actionTokenStrings[AT_ExprTypeRegExp],      AT_ExprTypeRegExp },
 	};
 	return hash.value(name, deflt);
 }
