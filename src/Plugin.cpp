@@ -594,6 +594,7 @@ void Plugin::setDefaultDeviceForTypeName(const QString &typeName, const QString 
 
 	if (deviceName.isEmpty()) {
 		m_defaultDevices.remove(t);
+		qCInfo(lcPlugin) << "Cleared default device for type" << Devices::deviceTypeName(t);
 	}
 	else {
 		if (const InputDevice *dev = DMI()->deviceByName(deviceName); !!dev && !dev->type().testFlags(t)) {
@@ -601,6 +602,7 @@ void Plugin::setDefaultDeviceForTypeName(const QString &typeName, const QString 
 			return;
 		}
 		m_defaultDevices.insert(t, deviceName);
+		qCInfo(lcPlugin) << "Set device" << deviceName << "as default for type" << Devices::deviceTypeName(t);
 	}
 
 	if (notify)
@@ -737,8 +739,6 @@ void Plugin::onDeviceEvent(const DeviceEvent &ev)
 	}
 
 	QByteArray stateValue;
-	// QByteArray stateId;
-	// QString stateName;
 	EventIdToken evId = EID_ENUM_MAX;
 	QByteArray ctrlName(QByteArray::number(ev.index));
 	//const auto evName = (QByteArray(QMetaEnum::fromType<Devices::EventType>().valueToKey(ev.type) + 6) + "Event"_L1).toLatin1();
@@ -821,7 +821,7 @@ void Plugin::onDeviceEvent(const DeviceEvent &ev)
 		}
 
 		default:
-			qCWarning(lcPlugin) << "Un-handled Device Event" << ev.timestamp << ev.type << ev.deviceType << ev.deviceUid;
+			qCWarning(lcPlugin) << "Unhandled Device Event" << ev.timestamp << ev.type << ev.deviceType << ev.deviceUid;
 			return;
 	}
 	// qCDebug(lcPlugin) << "Device Event" << ev.timestamp << ev.type << ev.deviceType << ev.deviceUid << dev;
@@ -829,8 +829,6 @@ void Plugin::onDeviceEvent(const DeviceEvent &ev)
 	if (g_settings.sendSpecificStates /*|| g_settings.sendGenericStates*/) {
 		const QByteArray stateId = QByteArray(g_deviceEventStateIds[ev.type]) + g_pathSep + ctrlName;
 		const QByteArray fullStateId = m_pluginStateIdPrefix + makeCleanStateId(dev->name()) + g_pathSep + stateId;
-		// const QByteArray uid(dev->uid());
-		// const QString devName(dev->name());
 
 		// QWriteLocker lock(&m_mtxDeviceStates);
 		m_mtxDeviceStates.lockForRead();
@@ -1047,8 +1045,9 @@ void Plugin::onTpMessage(TPClientQt::MessageType type, const QJsonObject &msg)
 
 void Plugin::dispatchAction(TPClientQt::MessageType type, const QJsonObject &msg)
 {
-	const QString actId = msg.value(type == TPClientQt::MessageType::connectorChange ? "connectorId"_L1 : "actionId"_L1).toString();
-	const QVector<QStringView> actIdArry = QStringView(actId).split('.');
+	// const QString actId = msg.value(type == TPClientQt::MessageType::connectorChange ? "connectorId"_L1 : "actionId"_L1).toString();
+	const QString actId = msg.value("actionId"_L1).toString();
+	const auto actIdArry = QStringView(actId).split('.');
 
 	if (actIdArry.length() < 7) {
 		qCCritical(lcPlugin) << "Action ID is malformed for action:" << actId;
@@ -1093,7 +1092,7 @@ static int resolveSubAction(const QMap<QString, QString> &dataMap)
 {
 	int subAct = tokenFromName(dataMap.value("action").toUtf8());
 	if (subAct == AT_Unknown)
-		qCCritical(lcPlugin) << "Unknown Command action:" << dataMap.value("action");
+		qCWarning(lcPlugin) << "Unknown Command action:" << dataMap.value("action");
 	return subAct;
 }
 
@@ -1207,7 +1206,8 @@ void Plugin::pluginAction(TPClientQt::MessageType /*type*/, int act, const QMap<
 					exit();
 					break;
 				default:
-					qCDebug(lcPlugin) << "No Handler defined for Plugin Control sub-action" << subAct;
+					if (subAct != AT_Unknown)
+						qCWarning(lcPlugin) << "No Handler defined for Plugin Control sub-action" << subAct;
 					return;
 			}
 			break;
@@ -1239,10 +1239,12 @@ void Plugin::pluginAction(TPClientQt::MessageType /*type*/, int act, const QMap<
 							break;
 						case CA_ClearFilter:
 							g_deviceEventFilters->remove(dev->uid());
-							qCDebug(lcPlugin) << "Removed report filter for device" << dev->name();
+							qCInfo(lcPlugin) << "Removed report filter for device" << dev->name();
 							break;
+
 						default:
-							qCDebug(lcPlugin) << "No Handler defined for Device Control sub-action" << subAct;
+							if (subAct != AT_Unknown)
+								qCWarning(lcPlugin) << "No Handler defined for Device Control sub-action" << subAct;
 							return;
 					}
 				}
@@ -1261,11 +1263,11 @@ void Plugin::pluginAction(TPClientQt::MessageType /*type*/, int act, const QMap<
 						break;
 					if (value.isEmpty()) {
 						g_deviceEventFilters->remove(dev->uid());
-						qCDebug(lcPlugin) << "Removed report filter for device" << dev->name();
+						qCInfo(lcPlugin) << "Removed report filter for device" << dev->name();
 					}
 					else {
 						(*g_deviceEventFilters)[dev->uid()] = df;
-						qCDebug(lcPlugin) << "Added report filter" << df.values() << "for device" << dev->name();
+						qCInfo(lcPlugin) << "Added report filter" << df.values() << "for device" << dev->name();
 					}
 				}
 			}
@@ -1279,11 +1281,11 @@ void Plugin::pluginAction(TPClientQt::MessageType /*type*/, int act, const QMap<
 			if (tokenFromName(devName.toUtf8()) == AT_RemoveDeviceAssignment)
 				devName.clear();
 			setDefaultDeviceForTypeName(typeName, devName);
-		}
 			break;
+		}
 
 		default:
-			qCDebug(lcPlugin) << "No Handler defined for Plugin action" << act;
+			qCWarning(lcPlugin) << "No Handler defined for Plugin action" << act;
 			return;
 	}
 }
