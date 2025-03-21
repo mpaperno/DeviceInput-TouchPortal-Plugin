@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
-set (VERSION_STR 1.0.0.0)
-set (VERSION_NUM 1000000)
-set (VERSION_SFX -beta1)
+set (VERSION_STR 1.0.0.1)
+set (VERSION_SFX beta2)
 set (PROJECT_FULL_NAME  "Device Input Plugin for Touch Portal")
 set (PROJECT_SHORT_NAME "Device Input Plugin")
 set (PROJECT_ORG_NAME   "${PROJECT_FULL_NAME}")
@@ -16,6 +15,11 @@ project(
 	HOMEPAGE_URL "https://github.com/mpaperno/DeviceInput-TouchPortal-Plugin"
   DESCRIPTION "This plugin allows using external hardware devices, such as game controllers, keyboards, etc, as inputs for Touch Portal."
   LANGUAGES CXX
+)
+
+math(EXPR VERSION_NUM
+	"((${PROJECT_VERSION_MAJOR} & 0xFF) << 24) | ((${PROJECT_VERSION_MINOR} & 0xFF) << 16) | ((${PROJECT_VERSION_PATCH} & 0xFF) << 8) | (${PROJECT_VERSION_TWEAK} & 0xFF)"
+	OUTPUT_FORMAT HEXADECIMAL
 )
 
 set(CMAKE_CXX_STANDARD 20)
