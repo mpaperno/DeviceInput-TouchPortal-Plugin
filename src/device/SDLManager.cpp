@@ -257,8 +257,6 @@ class SDLManagerPrivate
 			// case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 			// case SDL_EVENT_GAMEPAD_BUTTON_UP:
 
-
-
 			default:
 				qCDebug(lcSDL) << "SDL Event" << LOG_HEX(event->type, 8);
 				return false;
@@ -590,6 +588,7 @@ SDLManager::SDLManager(QObject *parent) :
 	SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_ENHANCED_REPORTS, "0", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_THREAD, "1", SDL_HINT_OVERRIDE);
+	SDL_SetHintWithPriority(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1", SDL_HINT_OVERRIDE);
 	// SDL_SetHintWithPriority(SDL_HINT_XINPUT_ENABLED, "0", SDL_HINT_OVERRIDE);
 	// SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_DIRECTINPUT, "0", SDL_HINT_OVERRIDE);
 	// SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_RAWINPUT, "0", SDL_HINT_OVERRIDE);
@@ -616,11 +615,11 @@ bool SDLManager::init()
 
 	d->initializing = true;
 
-	SDL_InitFlags sdlFlags = SDL_INIT_JOYSTICK;
+	SDL_InitFlags sdlFlags = SDL_INIT_JOYSTICK /*| SDL_INIT_GAMEPAD*/;
 #if PLATFORM_SDL_INIT_VIDEO
 	sdlFlags |= SDL_INIT_VIDEO;
 #endif
-	if (!SDL_Init(sdlFlags /*| SDL_INIT_GAMEPAD*/)) {
+	if (!SDL_Init(sdlFlags)) {
 		qCCritical(lcSDL) << "Couldn't initialize SDL:" << SDL_GetError();
 	}
 	else if (!SDL_AddEventWatch(SDLEventHander, d)) {
