@@ -675,7 +675,7 @@ void WindowsDeviceManager::sendDeviceReport(const QByteArray &uid)
 
 void WindowsDeviceManager::keyEventHandler(uint32_t vkCode, uint32_t scanCode, uint32_t flags)
 {
-	if (!vkCode || vkCode >= 0xFF || !scanCode)
+	if (!vkCode || vkCode >= 0xFF)
 		return;
 
 	SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
@@ -722,6 +722,12 @@ void WindowsDeviceManager::keyEventHandler(uint32_t vkCode, uint32_t scanCode, u
 	QString keyName;
 	QString keyText;
 	wchar_t nameBuff[16] {0};
+
+	if (!scanCode) {
+		// Media keys may not send a scan code with the actual key event for some reason, but a lookup works.
+		scanCode = MapVirtualKeyW(vkCode, MAPVK_VK_TO_VSC_EX);
+		// qCDebug(lcNAPI).nospace() << LOG_HEX4(vkCode) << DBG_SEP << LOG_HEX4(scanCode) << DBG_SEP << LOG_HEX4(flags);
+	}
 
 	uint sci = scanCode & 0xFF;  // index into windows_scancode_table array
 	if (flags & LLKHF_EXTENDED)
