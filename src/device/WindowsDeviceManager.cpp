@@ -437,7 +437,7 @@ static LRESULT CALLBACK windowsLLHook(int nCode, WPARAM wParam, LPARAM lParam)
 		}
 
 		default:
-			qCDebug(lcNAPI).nospace() << "Windows hook nCode: " << LOG_HEX4(nCode) << DBG_SEP << "wParam:" << LOG_HEX8(wParam) << DBG_SEP << "lParam:" << LOG_HEX8(lParam);
+			qCDebug(lcNAPI).nospace() << "Windows hook nCode: " << LOG_HEX4(nCode) << DBG_SEP << "wParam: " << LOG_HEX8(wParam) << DBG_SEP << "lParam: " << LOG_HEX8(lParam);
 			break;
 	}
 
@@ -492,6 +492,7 @@ class WindowsHookWorker : public QObject
 				hkLowLevelKybd = SetWindowsHookEx(WH_KEYBOARD_LL, windowsLLHook, NULL, NULL);
 				if (hkLowLevelKybd == NULL) {
 					en = false;
+					qCCritical(lcNAPI) << "Windows Keyboard hook failed" << GetLastError();
 				}
 				else {
 					// Get initial toggle key states
@@ -516,8 +517,10 @@ class WindowsHookWorker : public QObject
 
 			if (en && hkLowLevelMous == NULL) {
 				hkLowLevelMous = SetWindowsHookEx(WH_MOUSE_LL, windowsLLHook, NULL, NULL);
-				if (hkLowLevelMous == NULL)
+				if (hkLowLevelMous == NULL) {
 					en = false;
+					qCCritical(lcNAPI) << "Windows Mouse hook failed" << GetLastError();
+				}
 			}
 			else if (!en && hkLowLevelMous != NULL) {
 				UnhookWindowsHookEx(hkLowLevelMous);
@@ -545,9 +548,7 @@ class WindowsHookWorker : public QObject
 //
 
 WindowsDeviceManager::WindowsDeviceManager(QObject *parent) :
-	IApiManager{parent},
-	m_hookWorker{new WindowsHookWorker()},
-  m_workerThread{new QThread()}
+	IApiManager{parent}
 {
 	if (g_managerInstance)
 		delete g_managerInstance;
@@ -556,13 +557,6 @@ WindowsDeviceManager::WindowsDeviceManager(QObject *parent) :
 	g_mouseButtonState = 0;
 	g_keystateLock = false;
 	SDL_zeroa(g_kbState);
-
-	connect(this, &WindowsDeviceManager::enableDeviceHook, m_hookWorker, &WindowsHookWorker::hook, Qt::QueuedConnection);
-	// connect(m_hookWorker, &WindowsHookWorker::hooked, this, &WindowsDeviceManager::deviceReportToggled, Qt::QueuedConnection);
-	connect(m_hookWorker, &WindowsHookWorker::hooked, this, &WindowsDeviceManager::onDeviceHooked, Qt::QueuedConnection);
-	m_hookWorker->moveToThread(m_workerThread);
-	m_workerThread->setObjectName("WindowsHookWorkerThread");
-	// m_workerThread->start();
 
 	g_managerInstance = this;
 }
@@ -576,15 +570,46 @@ WindowsDeviceManager::~WindowsDeviceManager()
 	delete m_workerThread;
 }
 
+void WindowsDeviceManager::createWorker()
+{
+	if (!!m_hookWorker)
+		return;
+
+	m_hookWorker = new WindowsHookWorker();
+	m_workerThread = new QThread();
+	m_workerThread->setObjectName("WindowsHookWorkerThread");
+	connect(this, &WindowsDeviceManager::enableDeviceHook, m_hookWorker, &WindowsHookWorker::hook, Qt::QueuedConnection);
+	connect(m_hookWorker, &WindowsHookWorker::hooked, this, &WindowsDeviceManager::onDeviceHooked, Qt::QueuedConnection);
+	m_hookWorker->moveToThread(m_workerThread);
+	// m_workerThread->start();
+}
+
+void WindowsDeviceManager::destroyWorker()
+{
+	if (!m_hookWorker)
+		return;
+
+	if (m_workerThread->isRunning()) {
+		m_workerThread->quit();
+		m_workerThread->wait();
+	}
+	m_workerThread->deleteLater();
+	m_hookWorker->deleteLater();
+	m_workerThread = nullptr;
+	m_hookWorker = nullptr;
+}
+
 bool WindowsDeviceManager::init()
 {
 	if (g_winApiInit)
 		return true;
-	// SDL_SetHint(SDL_HINT_KEYCODE_OPTIONS, "hide_numpad");
 
+	// SDL_SetHint(SDL_HINT_KEYCODE_OPTIONS, "hide_numpad");
 	SDL_SetScancodeName(SDL_SCANCODE_APPLICATION, "Application");  // SDL sets this to "Menu" on Windows
 	// SDL_SetScancodeName(SDL_SCANCODE_LGUI, "Left Windows");
 	// SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Windows");
+
+	createWorker();
 
 	g_winApiInit = true;
 	return true;
@@ -599,10 +624,7 @@ void WindowsDeviceManager::deinit()
 	disconnectDevice(DI_SYSTEM_MOUSE_UID);
 	Q_EMIT deviceRemoved(DI_SYSTEM_KEYBOARD_UID);
 	Q_EMIT deviceRemoved(DI_SYSTEM_MOUSE_UID);
-	if (m_workerThread->isRunning()) {
-		m_workerThread->quit();
-		m_workerThread->wait();
-	}
+	destroyWorker();
 	g_winApiInit = false;
 	g_winApiDeInit = false;
 }
@@ -633,7 +655,7 @@ void WindowsDeviceManager::connectDevice(const QByteArray &uid)
 
 void WindowsDeviceManager::disconnectDevice(const QByteArray &uid)
 {
-	if (m_hookWorker && m_hookWorker->isEnabled(uid))
+	if (!!m_hookWorker && m_hookWorker->isEnabled(uid))
 		Q_EMIT enableDeviceHook(uid, false);
 }
 
@@ -641,7 +663,7 @@ void WindowsDeviceManager::onDeviceHooked(const QByteArray &uid, bool started)
 {
 	Q_EMIT deviceReportToggled(uid, started);
 
-	if (!started && !m_hookWorker->isEnabled())
+	if (!started && !!m_hookWorker && !m_hookWorker->isEnabled())
 		m_workerThread->quit();
 }
 

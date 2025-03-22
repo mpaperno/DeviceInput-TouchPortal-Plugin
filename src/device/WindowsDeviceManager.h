@@ -50,6 +50,8 @@ class WindowsDeviceManager : public IApiManager
 		void mouseEventHandler(uint32_t time, long ptX, long ptY, uint8_t button = 0, bool pressOrWheelH = false, int16_t wheel = 0);
 
 	private Q_SLOTS:
+		void createWorker();
+		void destroyWorker();
 		void onDeviceHooked(const QByteArray &, bool started);
 		// void discoverScreens();
 
@@ -59,6 +61,6 @@ class WindowsDeviceManager : public IApiManager
 		void enableMouseHook(bool);
 
 	private:
-		WindowsHookWorker *m_hookWorker;
-		QThread *m_workerThread;
+		WindowsHookWorker *m_hookWorker = nullptr;
+		QThread *m_workerThread = nullptr;
 };
