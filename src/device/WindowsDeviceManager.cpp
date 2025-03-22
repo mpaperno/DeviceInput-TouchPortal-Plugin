@@ -345,6 +345,16 @@ Q_GLOBAL_STATIC_WITH_ARGS(const SdlKeymodMap, g_vkKeyToSdlMod, ({
 	//{ VK_,         SDL_KMOD_GUI    },
 }))
 
+static inline constexpr bool isPrintableKey(SDL_Scancode scanCode) noexcept
+{
+	return (
+		(scanCode > SDL_SCANCODE_UNKNOWN && scanCode <= SDL_SCANCODE_SLASH) ||
+		(scanCode >= SDL_SCANCODE_KP_DIVIDE && scanCode <= SDL_SCANCODE_NONUSBACKSLASH ) ||
+		(scanCode >= SDL_SCANCODE_KP_00 && scanCode <= SDL_SCANCODE_KP_EXCLAM ) ||
+		scanCode == SDL_SCANCODE_KP_EQUALS || scanCode == SDL_SCANCODE_KP_COMMA || scanCode == SDL_SCANCODE_KP_EQUALSAS400
+	);
+}
+
 static void toggleKbdModState(/*SDL_Keymod &target,*/ SDL_Keymod mod, bool on, uint8_t vk) {
 	if (on)
 		g_keyModState |= mod;
@@ -752,8 +762,12 @@ void WindowsDeviceManager::keyEventHandler(uint32_t vkCode, uint32_t scanCode, u
 		}
 	}
 
-	if (const int res = ToUnicode(vkCode, scanCode, g_kbState, nameBuff, SDL_arraysize(nameBuff), 0x04); res > 0)
-		keyText = QString::fromWCharArray(nameBuff, res);
+	// Look up text value for printable keys using keyboard layout of current foreground window (if any).
+	if (isPrintableKey(scancode)) {
+		const int res = ToUnicodeEx(vkCode, scanCode, g_kbState, nameBuff, SDL_arraysize(nameBuff), 0x04, GetKeyboardLayout(GetWindowThreadProcessId(GetForegroundWindow(), NULL)));
+		if (res > 0)
+			keyText = QString::fromWCharArray(nameBuff, res);
+	}
 
 	DeviceKeyEvent *ev = new DeviceKeyEvent(SDL_GetTicksNS(), (uint)scancode, mods, (uint)key, vkCode, scanCode, down, repeat, keyName, keyText);
 
