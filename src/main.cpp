@@ -201,6 +201,7 @@ int main(int argc, char *argv[])
 			logFilterRules += QLatin1String(lcPlugin().categoryName()) + '.' + lvlName + " = false\n";
 			logFilterRules += QLatin1String(lcLog().categoryName()) + '.' + lvlName + " = false\n";
 			logFilterRules += QLatin1String(lcDevices().categoryName()) + '.' + lvlName + " = false\n";
+			logFilterRules += QLatin1String(lcDevices().categoryName()) + ".*." + lvlName + " = false\n";
 			logFilterRules += QLatin1String("TPClientQt.") + lvlName + " = false\n";
 			--effectiveLevel;
 		}
@@ -211,6 +212,7 @@ int main(int argc, char *argv[])
 			logFilterRules += QLatin1String(lcPlugin().categoryName()) + '.' + lvlName + " = true\n";
 			logFilterRules += QLatin1String(lcLog().categoryName()) + '.' + lvlName + " = true\n";
 			logFilterRules += QLatin1String(lcDevices().categoryName()) + '.' + lvlName + " = true\n";
+			logFilterRules += QLatin1String(lcDevices().categoryName()) + ".*." + lvlName + " = true\n";
 			logFilterRules += QLatin1String("TPClientQt.") + lvlName + " = true\n";
 			++effectiveLevel;
 		}
